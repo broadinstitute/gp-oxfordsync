@@ -11,7 +11,7 @@ LOGDIR=/home/prom/gp-oxfordsync/logs        # directory to hold output logs of r
 DELDIR=/home/prom/gp-oxfordsync/dele        # directory to hold scripts to do actual deletions
 LOGDATEFORMAT='+%Y%m%d-%H%M'                # format of the date portion of logfile names
 SRC_TLD=/data                               # top level data directory
-SRC_DIR_REGEX='LCSET-[0-9]+/SM-[A-Z]*'      # regexp to match direcotries to clear
+SRC_DIR_REGEX='/LCSET-[0-9]+/SM-[A-Z]*'      # regexp to match direcotries to clear
 MIN_DAYS=30                                 # if directory hasn't changed in this many days, delete
 NEXT_DAYS=23                                # number of days old dirs must be to be candidates next week
 DOM=broadinstitute.org
@@ -24,7 +24,8 @@ DELETE_LOG=${LOGDIR}/delete_`date $LOGDATEFORMAT`
 #
 touch $DELETE_SCRIPT
 chmod 755 $DELETE_SCRIPT
-echo "#!/bin/bash\n#\n" >> $DELETE_SCRIPT
+echo "#!/bin/bash" >> $DELETE_SCRIPT
+echo "#" >> $DELETE_SCRIPT
 #
 # start the log file
 #
@@ -38,19 +39,21 @@ SYNCDIRS+=$( find $SRC_TLD -maxdepth 2 -mtime +$MIN_DAYS | egrep "$SRC_DIR_REGEX
 # maybe we can parallelize here but let's start with the basics
 for DIR in ${SYNCDIRS[@]}; do 
   echo $DIR >> $DELETE_LOG
-  echo rm -rf $DIR >> DELETE_SCRIPT
+  echo "rm -rf $DIR" >> $DELETE_SCRIPT
 done
 
-if [ $1 = "commit" ]; then
+if [ "x$1" = "xcommit" ]; then
   bash $DELETE_SCRIPT >> $DELETE_LOG
 else
-  echo \nThis is a dry run.  To actually delete the data run $DELETE_SCRIPT\n >> $DELETE_LOG
+  echo >>  $DELETE_LOG
+  echo "This is a dry run.  To actually delete the data run $DELETE_SCRIPT" >> $DELETE_LOG
+  echo >>  $DELETE_LOG
 fi
 
 # Now let's figure out what will get deleted next week
 
-NEXTDIRS+=$( find $SRC_TLD -maxdepth 2 -mtime +$NEXT_DAYS | egrep "$SRC_DIR_REGEX" )
-echo "\nNext week, the following dirs are scheduled for deletion:\n" >> $DELETE_LOG
+NEXTDIRS+=$( find $SRC_TLD -maxdepth 2 -mtime +$NEXT_DAYS -mtime -$MIN_DAYS | egrep "$SRC_DIR_REGEX" )
+echo "Next week, the following dirs are scheduled for deletion:" >> $DELETE_LOG
 
 for DIR in ${NEXTDIRS[@]}; do 
   echo $DIR >> $DELETE_LOG
